@@ -1,1 +1,1 @@
-add_executable(AnalyzeLog main.cpp)
+add_executable(AnalyzeLog main.cpp arguments.cpp)
