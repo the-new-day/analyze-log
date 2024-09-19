@@ -6,6 +6,8 @@
 #include <sstream>
 #include <iostream>
 
+const std::string kMissingArgumentMsg{"Unspecified argument value (unexpected end of argument sequence)"};
+
 std::string GetParameterInfo(const std::string& parameter) {
 
     if (parameter == "--stats" || parameter == "-s") {
@@ -67,55 +69,70 @@ int64_t ParseInt(const char* str) {
 Parameters ParseArguments(int argc, char** argv) {
     Parameters parameters;
 
+    bool options_terminated = false;
+
     for (int32_t i = 1; i < argc; ++i) {
         char* argument = argv[i];
 
-        if (std::strcmp(argument, "-o") == 0) {
+        if (options_terminated || argument[0] != '-') {
+            parameters.logs_filename = argument;
+            continue;
+        }
+
+        if (std::strcmp(argument, "--") == 0) {
+            options_terminated = true;
+            continue;
+        }
+
+        if (std::strcmp(argument, "--output") == 0 || std::strcmp(argument, "-o") == 0) {
             if (i == argc - 1) {
-                throw std::runtime_error("Unspecified argument value: -o");
+                throw std::runtime_error(kMissingArgumentMsg);
             }
 
             parameters.output_path = argv[++i];
         } else if (std::strncmp(argument, "--output=", 9) == 0) {
             parameters.output_path = argument + 9;
-        } else if (std::strcmp(argument, "-p") == 0 || std::strcmp(argument, "--print") == 0) {
-            parameters.need_print = true;
-        } else if (std::strcmp(argument, "-s") == 0) {
+        } else if (std::strcmp(argument, "--stats") == 0 || std::strcmp(argument, "-s") == 0) {
             if (i == argc - 1) {
-                throw std::runtime_error("Unspecified argument value: -s");
+                throw std::runtime_error(kMissingArgumentMsg);
             }
 
             parameters.stats = ParseInt(argv[++i]);
-        } else if (strncmp(argument, "--stats=", 8) == 0) {
+        } else if (std::strncmp(argument, "--stats=", 8) == 0) {
             parameters.stats = ParseInt(argument + 8);
-        }  else if (std::strcmp(argument, "-w") == 0) {
+        } else if (std::strcmp(argument, "--window") == 0 || std::strcmp(argument, "-w") == 0) {
             if (i == argc - 1) {
-                throw std::runtime_error("Unspecified argument value: -w");
+                throw std::runtime_error(kMissingArgumentMsg);
             }
 
             parameters.window = ParseInt(argv[++i]);
-        } else if (strncmp(argument, "--window=", 9) == 0) {
+        } else if (std::strncmp(argument, "--window=", 9) == 0) {
             parameters.window = ParseInt(argument + 9);
-        }  else if (std::strcmp(argument, "-f") == 0) {
+        } else if (std::strcmp(argument, "--from") == 0 || std::strcmp(argument, "-f") == 0) {
             if (i == argc - 1) {
-                throw std::runtime_error("Unspecified argument value: -f");
+                throw std::runtime_error(kMissingArgumentMsg);
             }
 
             parameters.from_time = ParseInt(argv[++i]);
-        } else if (strncmp(argument, "--from=", 7) == 0) {
+        } else if (std::strncmp(argument, "--from=", 7) == 0) {
             parameters.from_time = ParseInt(argument + 7);
-        }  else if (std::strcmp(argument, "-e") == 0) {
+        } else if (std::strcmp(argument, "--to") == 0 || std::strcmp(argument, "-t") == 0) {
             if (i == argc - 1) {
-                throw std::runtime_error("Unspecified argument value: -e");
+                throw std::runtime_error(kMissingArgumentMsg);
             }
 
             parameters.to_time = ParseInt(argv[++i]);
-        } else if (strncmp(argument, "--to=", 5) == 0) {
+        } else if (std::strncmp(argument, "--to=", 5) == 0) {
             parameters.to_time = ParseInt(argument + 5);
-        } else if (strncmp(argument, "--help", 6) == 0 || strcmp(argument, "-h") == 0) {
+        } else if (std::strcmp(argument, "--print") == 0 || std::strcmp(argument, "-p") == 0) {
+            parameters.need_print = true;
+        } else if (std::strcmp(argument, "--help") == 0 || std::strcmp(argument, "-h") == 0) {
             parameters.need_help = true;
         } else {
-            parameters.logs_filename = argument;
+            std::stringstream error_message;
+            error_message << "Unknown argument: \"" << argument << '"';
+
+            throw std::invalid_argument(error_message.str());
         }
     }
 

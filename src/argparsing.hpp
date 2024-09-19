@@ -21,3 +21,5 @@ Parameters ParseArguments(int argc, char** argv);
 std::string GetParameterInfo(const std::string& parameter);
 
 std::string GetHelpMessage();
+
+int64_t ParseInt(const char* str);
