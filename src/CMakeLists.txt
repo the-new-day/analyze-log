@@ -1,1 +1,1 @@
-add_executable(AnalyzeLog main.cpp argparsing.cpp analyzer.cpp)
+add_executable(AnalyzeLog main.cpp argparsing.cpp analyzing.cpp)
