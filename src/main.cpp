@@ -20,6 +20,11 @@ int monthToNumber(const char *month) {
 
 int main(int argc, char** argv){
     try {
+        if (argc < 2) {
+            ShowHelpMessage();
+            return EXIT_SUCCESS;
+        }
+
         Parameters params = ParseArguments(argc, argv);
         if (params.need_help) {
             ShowHelpMessage();
@@ -34,21 +39,17 @@ int main(int argc, char** argv){
         //         << "To: " << params.to_time << '\n'
         //         << "Logs file: " << params.logs_filename << '\n';
 
-        // std::cout << FindSubstring("abcdefghijk", "efg") << '\n';
+        // const char* raw_entry = "199.72.81.55 - - [01/Jul/1995:00:00:01 -0400] \"GET /history/apollo/ HTTP/1.0\" 200 6245";
+        // LogEntry entry; 
+        // ParseLogEntry(entry, raw_entry);
 
-        const char* raw_entry = "199.72.81.55 - - [01/Jul/1995:00:00:01 -0400] \"GET /history/apollo/ HTTP/1.0\" 200 6245";
-        LogEntry entry; 
-        ParseLogEntry(entry, raw_entry);
+        // std::cout << "remote_addr: " << entry.remote_addr << '\n'
+        //         << "local_time: " << entry.timestamp << '\n'
+        //         << "request: " << entry.request << '\n'
+        //         << "status: " << entry.status << '\n'
+        //         << "bytes: " << entry.bytes_sent << '\n';
 
-        std::cout << "remote_addr: " << entry.remote_addr << '\n'
-                << "local_time: " << entry.timestamp << '\n'
-                << "request: " << entry.request << '\n'
-                << "status: " << entry.status << '\n'
-                << "bytes: " << entry.bytes_sent << '\n';
-
-        // delete[] entry.remote_addr;
-        // delete[] entry.request;
-        // delete[] entry.status;
+        Analyze(params);
     } catch (const std::exception& e) {
         std::cerr << "An error occured:\n" << e.what();
         std::cout << "\nUse --help to see information about supported commands";

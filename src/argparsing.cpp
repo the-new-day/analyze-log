@@ -3,32 +3,33 @@
 #include <cstring>
 #include <stdexcept>
 #include <iostream>
+#include <sstream>
 
 constexpr const char* kMissingArgumentMsg{"Unspecified argument value (unexpected end of argument sequence)"};
 
-const char* GetParameterInfo(const char* parameter) {
-    if (std::strcmp(parameter, "--stats") == 0 || std::strcmp(parameter, "-s") == 0) {
+const char* GetParameterInfo(std::string_view parameter) {
+    if (parameter == "--stats" || parameter == "-s") {
         return "--stats=<amount> | -s <amount>      [int, >= 0, default=10]       Output first n most frequent requests "
                "finished with code 5XX (in order of frequency)";
-    } else if (std::strcmp(parameter, "--window") == 0 || std::strcmp(parameter, "-w") == 0) {
+    } else if (parameter == "--window" || parameter == "-w") {
         return "--window=<seconds> | -w <second>    [int, >= 0, default=0]        Output a window of n seconds on which number of "
                "requests was the highest. By default, no such window is calculated";
-    } else if (std::strcmp(parameter, "--from") == 0 || std::strcmp(parameter, "-f") == 0) {
+    } else if (parameter == "--from" || parameter == "-f") {
         return "--from=<timestamp> | -f <timestamp> [int, >= 0, default=smallest] Ignore time before the specified";
-    } else if (std::strcmp(parameter, "--to") == 0 || std::strcmp(parameter, "-e") == 0) {
-        return "--to=<timestamp> | -e <timestamp>   [int, >= 0, default=greatest] Ignore time after the specified";
-    } else if (std::strcmp(parameter, "--output") == 0 || std::strcmp(parameter, "-o") == 0) {
+    } else if (parameter == "--to" || parameter == "-t") {
+        return "--to=<timestamp> | -t <timestamp>   [int, >= 0, default=greatest] Ignore time after the specified";
+    } else if (parameter == "--output" || parameter == "-o") {
         return "--output=<path> | -o <path>         [string]                      Path to the file to which 5XX requests will be written";
-    } else if (std::strcmp(parameter, "--print") == 0 || std::strcmp(parameter, "-p") == 0) {
+    } else if (parameter == "--print" || parameter == "-p") {
         return "--print | -p                        [flag]                        If specified, 5XX requests will be printed to stdout";
-    } else if (std::strcmp(parameter, "--help") == 0 || std::strcmp(parameter, "-h") == 0) {
+    } else if (parameter == "--help" || parameter == "-h") {
         return "--help | -h                         [flag]                        Show help and exit";
     }
 
-    char error_message[100];
-    std::sprintf(error_message, "Unknown argument: \"%s\"", parameter);
+    std::stringstream error_message;
+    error_message << "Unknown argument: \"" << parameter << '"';
 
-    throw std::invalid_argument(error_message);
+    throw std::invalid_argument(error_message.str());
 }
 
 void ShowHelpMessage() {
@@ -43,7 +44,7 @@ void ShowHelpMessage() {
     std::cout << "\n\t";
     std::cout << GetParameterInfo("-f");
     std::cout << "\n\t";
-    std::cout << GetParameterInfo("-e");
+    std::cout << GetParameterInfo("-t");
     std::cout << "\n\t";
     std::cout << GetParameterInfo("-h");
 }
@@ -53,10 +54,10 @@ int64_t ParseInt(std::string_view str) {
     std::from_chars_result convertion_result = std::from_chars(str.data(), str.data() + str.size(), result);
 
     if (convertion_result.ec == std::errc::invalid_argument || convertion_result.ptr != str.end()) {
-        char error_message[100];
-        std::sprintf(error_message, "Cannot parse an integer from \"%s\"", std::string(str).c_str());
+        std::stringstream error_message("Cannot parse an integer from \"");
+        error_message << std::string(str).c_str() << '"';
 
-        throw std::invalid_argument(error_message);
+        throw std::invalid_argument(error_message.str());
     }
 
     return result;
@@ -135,31 +136,14 @@ Parameters ParseArguments(int argc, char** argv) {
         } else if (std::strcmp(argument, "--help") == 0 || std::strcmp(argument, "-h") == 0) {
             parameters.need_help = true;
         } else {
-            char error_message[100];
-            std::sprintf(error_message, "Unknown argument: \"%s\"", argument);
+            std::stringstream error_message("Unknown argument: \"");
+            error_message << argument << '"';
 
-            throw std::invalid_argument(error_message);
+            throw std::invalid_argument(error_message.str());
         }
     }
-
-    // TODO: agrument validation (that is not a type-check) is not the responsibility of the parser
-
-    // std::stringstream error_message;
-    // error_message << "Negative value for a positive integer argument ";
-
-    // if (parameters.stats < 0) {
-    //     error_message << "--stats (-s): " << parameters.stats;
-    // } else if (parameters.window < 0) {
-    //     error_message << "--window (-w): " << parameters.window;
-    // } else if (parameters.from_time < 0) {
-    //     error_message << "--from (-f): " << parameters.from_time;
-    // } else if (parameters.to_time < 0) {
-    //     error_message << "--to (-e): " << parameters.to_time;
-    // } 
-
-    // throw std::invalid_argument(error_message.str());
     
-    if (parameters.logs_filename == nullptr && !parameters.need_help) {
+    if (parameters.logs_filename.empty() && !parameters.need_help) {
         throw std::runtime_error("No logs filename is specified");
     } else {
         return parameters;
