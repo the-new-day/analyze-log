@@ -1,6 +1,5 @@
 #include "analyzing.hpp"
 
-#include <cstring>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -56,7 +55,7 @@ void Analyze(const Parameters& parameters) {
 
         if (parameters.from_time > entry.timestamp) {
             continue;
-        } else if (parameters.to_time < entry.timestamp) {
+        } else if (parameters.to_time != 0 && parameters.to_time < entry.timestamp) {
             break;
         }
 

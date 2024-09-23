@@ -1,6 +1,6 @@
 #include "datetime.hpp"
 
-#include <iostream>
+#include <charconv>
 
 int8_t MonthToNumber(std::string_view month) {
     for (int i = 1; i <= 12; ++i) {
@@ -24,8 +24,6 @@ int8_t GetDaysInMonth(int8_t month, int16_t year) {
 }
 
 uint64_t DateTimeToTimestamp(const DateTime& datetime) {
-    
-
     uint64_t result = 0;
 
     for (int16_t year = 1970; year < datetime.year; ++year) {
