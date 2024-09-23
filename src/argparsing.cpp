@@ -48,13 +48,13 @@ void ShowHelpMessage() {
     std::cout << GetParameterInfo("-h");
 }
 
-int64_t ParseInt(const char* str) {
-    char* pos;
-    int64_t result = std::strtoll(str, &pos, 10);
+int64_t ParseInt(std::string_view str) {
+    int64_t result;
+    std::from_chars_result convertion_result = std::from_chars(str.data(), str.data() + str.size(), result);
 
-    if (*pos != 0) {
+    if (convertion_result.ec == std::errc::invalid_argument || convertion_result.ptr != str.end()) {
         char error_message[100];
-        std::sprintf(error_message, "Cannot parse an integer from \"%s\"", str);
+        std::sprintf(error_message, "Cannot parse an integer from \"%s\"", std::string(str).c_str());
 
         throw std::invalid_argument(error_message);
     }
@@ -86,6 +86,8 @@ Parameters ParseArguments(int argc, char** argv) {
             }
 
             parameters.output_path = argv[++i];
+        } else if (std::strncmp(argument, "-o", 2) == 0) {
+            parameters.output_path = argument + 2;
         } else if (std::strncmp(argument, "--output=", 9) == 0) {
             parameters.output_path = argument + 9;
         } else if (std::strcmp(argument, "--stats") == 0 || std::strcmp(argument, "-s") == 0) {
@@ -94,6 +96,8 @@ Parameters ParseArguments(int argc, char** argv) {
             }
 
             parameters.stats = ParseInt(argv[++i]);
+        } else if (std::strncmp(argument, "-s", 2) == 0) {
+            parameters.stats = ParseInt(argument + 2);
         } else if (std::strncmp(argument, "--stats=", 8) == 0) {
             parameters.stats = ParseInt(argument + 8);
         } else if (std::strcmp(argument, "--window") == 0 || std::strcmp(argument, "-w") == 0) {
@@ -102,6 +106,8 @@ Parameters ParseArguments(int argc, char** argv) {
             }
 
             parameters.window = ParseInt(argv[++i]);
+        } else if (std::strncmp(argument, "-w", 2) == 0) {
+            parameters.window = ParseInt(argument + 2);
         } else if (std::strncmp(argument, "--window=", 9) == 0) {
             parameters.window = ParseInt(argument + 9);
         } else if (std::strcmp(argument, "--from") == 0 || std::strcmp(argument, "-f") == 0) {
@@ -110,6 +116,8 @@ Parameters ParseArguments(int argc, char** argv) {
             }
 
             parameters.from_time = ParseInt(argv[++i]);
+        } else if (std::strncmp(argument, "-f", 2) == 0) {
+            parameters.from_time = ParseInt(argument + 2);
         } else if (std::strncmp(argument, "--from=", 7) == 0) {
             parameters.from_time = ParseInt(argument + 7);
         } else if (std::strcmp(argument, "--to") == 0 || std::strcmp(argument, "-t") == 0) {
@@ -118,6 +126,8 @@ Parameters ParseArguments(int argc, char** argv) {
             }
 
             parameters.to_time = ParseInt(argv[++i]);
+        } else if (std::strncmp(argument, "-t", 2) == 0) {
+            parameters.to_time = ParseInt(argument + 2);
         } else if (std::strncmp(argument, "--to=", 5) == 0) {
             parameters.to_time = ParseInt(argument + 5);
         } else if (std::strcmp(argument, "--print") == 0 || std::strcmp(argument, "-p") == 0) {

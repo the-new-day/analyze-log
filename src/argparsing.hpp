@@ -21,5 +21,3 @@ Parameters ParseArguments(int argc, char** argv);
 const char* GetParameterInfo(const char* parameter);
 
 void ShowHelpMessage();
-
-int64_t ParseInt(const char* str);
