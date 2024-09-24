@@ -1,1 +1,1 @@
-add_executable(AnalyzeLog main.cpp argparsing.cpp analyzing.cpp datetime.cpp)
+add_executable(AnalyzeLog main.cpp argparsing.cpp analyzing.cpp datetime.cpp stats_array.cpp)
