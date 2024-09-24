@@ -59,8 +59,8 @@ int64_t ParseInt(std::string_view str) {
     std::from_chars_result convertion_result = std::from_chars(str.data(), str.data() + str.size(), result);
 
     if (convertion_result.ec == std::errc::invalid_argument || convertion_result.ptr != str.end()) {
-        std::stringstream error_message("Cannot parse an integer from \"");
-        error_message << std::string(str).c_str() << '"';
+        std::stringstream error_message;
+        error_message << "Cannot parse an integer from \"" << std::string(str).c_str() << '"';
 
         throw std::invalid_argument(error_message.str());
     }
@@ -151,8 +151,8 @@ Parameters ParseArguments(int argc, char** argv) {
         } else if (std::strncmp(argument, "--invalid-lines-output=", 23) == 0) {
             parameters.invalid_lines_output_path = argument + 23;
         } else {
-            std::stringstream error_message("Unknown argument: \"");
-            error_message << argument << '"';
+            std::stringstream error_message;
+            error_message << "Unknown argument: \"" << argument << '"';
 
             throw std::invalid_argument(error_message.str());
         }

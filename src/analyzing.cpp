@@ -6,6 +6,7 @@
 #include <fstream>
 #include <filesystem>
 #include <cstring>
+#include <sstream>
 
 void ValidateParameters(const Parameters& parameters) {
     std::stringstream negative_value_error_message;
@@ -26,7 +27,10 @@ void ValidateParameters(const Parameters& parameters) {
     }
 
     if (parameters.logs_filename != nullptr && !std::filesystem::exists(parameters.logs_filename)) {
-        throw std::invalid_argument("Unknown input file");
+        std::stringstream error_message;
+        error_message << "Cannot find file \"" << parameters.logs_filename << '"';
+
+        throw std::invalid_argument(error_message.str());
     }
 }
 
@@ -125,9 +129,9 @@ char* GetSubstring(const char* src, uint32_t from, uint32_t to) {
     }
     
     char* result = new char[to - from + 1];
-    result[to - from] = '\0';
-    
     std::strncpy(result, src + from, to - from);
+    result[to - from] = '\0';
+
     return result;
 }
 
@@ -138,7 +142,7 @@ int32_t FindSubstring(const char* haystack, const char* needle, int32_t start_fr
 
 bool IsNumeric(const char* str) {
     for (int i = 0; i < std::strlen(str); ++i) {
-        if (str[i] < '0' || str[i] > '9') {
+        if (!std::isdigit(str[i])) {
             return false;
         }
     }
@@ -147,40 +151,42 @@ bool IsNumeric(const char* str) {
 }
 
 bool ParseLogEntry(LogEntry& to, const char* raw_entry) {
-    if (FindSubstring(raw_entry, " - - ") == -1) {
+    int32_t remote_addr_length = FindSubstring(raw_entry, " - - ");
+
+    if (remote_addr_length == -1) {
         return false;
     }
 
-    to.remote_addr = GetSubstring(raw_entry, 0, FindSubstring(raw_entry, " - - "));
+    to.remote_addr = GetSubstring(raw_entry, 0, remote_addr_length);
 
-    int32_t local_time_pos = std::strlen(to.remote_addr) + std::strlen(" - - ");
+    int32_t local_time_start = remote_addr_length + std::strlen(" - - ");
+    int32_t local_time_end = FindSubstring(raw_entry, "]", local_time_start);
 
-    if (raw_entry[local_time_pos] != '[' || FindSubstring(raw_entry, "]", local_time_pos) == -1) {
+    if (raw_entry[local_time_start] != '[' || local_time_end == -1) {
         return false;
     }
 
-    char* raw_local_time = GetSubstring(raw_entry, local_time_pos + 1, FindSubstring(raw_entry, "]", local_time_pos));
+    char* raw_local_time = GetSubstring(raw_entry, local_time_start + 1, local_time_end);
     to.timestamp = LocalTimeStringToTimestamp(raw_local_time);
+    delete[] raw_local_time;
 
-    int32_t request_pos = local_time_pos + std::strlen(raw_local_time) + 3;
-    if (raw_entry[request_pos] != '"' 
-        || raw_entry[request_pos - 1] != ' ' 
-        || FindSubstring(raw_entry, "\"", request_pos + 1) == -1)
-    {
-        return false;
-    }
-
-    to.request = GetSubstring(raw_entry, request_pos + 1, FindSubstring(raw_entry, "\"", request_pos + 1));
-    int32_t status_pos = request_pos + std::strlen(to.request) + 3;
+    int32_t request_start = local_time_end + 2;
+    int32_t request_end = FindSubstring(raw_entry, "\"", request_start + 1);
     
-    if (raw_entry[status_pos - 1] != ' ' 
-        || FindSubstring(raw_entry, " ", status_pos) == -1
-        || FindSubstring(raw_entry, " ", status_pos) - status_pos != 3) 
-    {
+    if (raw_entry[request_start] != '"' || raw_entry[request_start - 1] != ' ' || request_end == -1) {
         return false;
     }
 
-    char* raw_status = GetSubstring(raw_entry, status_pos, FindSubstring(raw_entry, " ", status_pos));
+    to.request = GetSubstring(raw_entry, request_start + 1, request_end);
+
+    int32_t status_start = request_end + 2;
+    int32_t status_end = FindSubstring(raw_entry, " ", status_start);
+    
+    if (raw_entry[status_start - 1] != ' ' || status_end == -1 || status_end - status_start != 3) {
+        return false;
+    }
+
+    char* raw_status = GetSubstring(raw_entry, status_start, status_end);
 
     if (!IsNumeric(raw_status)) {
         delete[] raw_status;
@@ -189,19 +195,19 @@ bool ParseLogEntry(LogEntry& to, const char* raw_entry) {
 
     to.status = raw_status;
 
-    int32_t bytes_sent_pos = status_pos + std::strlen(to.status) + 1;
+    int32_t bytes_sent_start = status_end + 1;
 
-    if (raw_entry[bytes_sent_pos - 1] != ' ') {
+    if (raw_entry[bytes_sent_start - 1] != ' ') {
         return false;
     }
 
     int64_t bytes_sent;
 
-    if (std::strlen(raw_entry + bytes_sent_pos) == 1 && raw_entry[bytes_sent_pos] == '-') {
+    if (std::strlen(raw_entry + bytes_sent_start) == 1 && raw_entry[bytes_sent_start] == '-') {
         bytes_sent = 0;
     } else {
         char* pos;
-        bytes_sent = std::strtoll(raw_entry + bytes_sent_pos, &pos, 10);
+        bytes_sent = std::strtoll(raw_entry + bytes_sent_start, &pos, 10);
 
         if (*pos != 0) {
             delete[] raw_local_time;
@@ -211,6 +217,5 @@ bool ParseLogEntry(LogEntry& to, const char* raw_entry) {
 
     to.bytes_sent = bytes_sent;
 
-    delete[] raw_local_time;
     return true;
 }
