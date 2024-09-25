@@ -1,6 +1,7 @@
 build/
 .vscode/
 access_log_Jul95
+test.txt
 
 # Prerequisites
 *.d

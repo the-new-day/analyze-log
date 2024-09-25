@@ -4,14 +4,14 @@
 
 #include <cstdint>
 
-#include <string>
+const int32_t kLineBufferSize = 8192;
 
 struct LogEntry {
     char* remote_addr = nullptr;
     char* request = nullptr;
     char* status = nullptr;
     
-    uint32_t timestamp = 0;
+    uint64_t timestamp = 0;
     int64_t bytes_sent = -1;
 };
 
@@ -20,8 +20,6 @@ struct RequestStatistic {
     uint64_t frequency = 0;
 };
 
-void Analyze(const Parameters& parameters);
-
-//bool ParseLogEntry(LogEntry& to, std::string_view raw_entry);
+void AnalyzeLog(const Parameters& parameters);
 
 bool ParseLogEntry(LogEntry& to, const char* raw_entry);

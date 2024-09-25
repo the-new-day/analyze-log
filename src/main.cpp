@@ -15,7 +15,7 @@ int main(int argc, char** argv){
             return EXIT_SUCCESS;
         }
 
-        Analyze(params);
+        AnalyzeLog(params);
     } catch (const std::exception& e) {
         std::cerr << "An error occured:\n" << e.what();
         std::cout << "\nUse --help to see information about supported commands";

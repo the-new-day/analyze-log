@@ -51,14 +51,25 @@ void UpdateStatistics(StatsArray& statistics, const char* request) {
 }
 
 void PrintStats(const StatsArray& stats, int32_t amount) {
-    std::cout << "[5XX requests statistics]:\n\n";
+    std::cout << "\n[5XX requests statistics]:\n";
 
     for (int i = 0; i < amount && i < stats.size; ++i) {
-        std::cout << stats.data[i].frequency << ' ' << stats.data[i].request << '\n';
+        std::cout << "* " << stats.data[i].request << " - " 
+                  << stats.data[i].frequency << " request" << (stats.data[i].frequency > 1 ? "s" : "") << '\n';
+    }
+
+    if (stats.size == 0) {
+        std::cout << "No such requests found\n";
     }
 }
 
-void Analyze(const Parameters& parameters) {
+void ShiftArray(uint32_t* array, uint32_t n) {
+    for (uint32_t i = 0; i < n - 1; ++i) {
+        array[i] = array[i + 1];
+    }
+}
+
+void AnalyzeLog(const Parameters& parameters) {
     ValidateParameters(parameters);
 
     std::ifstream input_file(parameters.logs_filename);
@@ -84,14 +95,39 @@ void Analyze(const Parameters& parameters) {
 
     StatsArray error_logs_stats;
 
-    char line_buffer[8192];
+    uint64_t lower_timestamp = 0;
+    uint64_t higher_timestamp;
+
+    uint32_t max_amount_of_requests = 0;
+    uint32_t current_amount_of_requests = 0;
+    uint32_t amount_of_requests_on_lower = 0;
+
+    uint64_t result_lower_timestamp = 0;
+    uint64_t result_higher_timestamp = 0;
+
+    char* line_buffer = new char[kLineBufferSize];
+
+    uint32_t* amount_of_requests_in_second = new uint32_t[parameters.window];
+    std::fill(amount_of_requests_in_second, amount_of_requests_in_second + parameters.window, 0);
     
-    while (input_file.getline(line_buffer, 8192)) {
+    while (input_file.getline(line_buffer, kLineBufferSize)) {
         LogEntry entry;
         
         if (!ParseLogEntry(entry, line_buffer)) {
             if (parameters.invalid_lines_output_path != nullptr) {
                 invalid_lines_output_file << line_buffer << '\n';
+            }
+
+            if (entry.remote_addr != nullptr) {
+                delete[] entry.remote_addr;
+            }
+
+            if (entry.request != nullptr) {
+                delete[] entry.request;
+            }
+
+            if (entry.status != nullptr) {
+                delete[] entry.status;
             }
 
             continue;
@@ -103,7 +139,29 @@ void Analyze(const Parameters& parameters) {
             break;
         }
 
-        if (entry.status[0] == '5') {
+        if (parameters.window != 0) {
+            if (lower_timestamp == 0) {
+                lower_timestamp = entry.timestamp;
+                higher_timestamp = lower_timestamp + parameters.window;
+            }
+
+            if (entry.timestamp <= higher_timestamp) {
+                ++amount_of_requests_in_second[entry.timestamp - lower_timestamp];
+                ++current_amount_of_requests;
+            } else {
+                if (max_amount_of_requests < current_amount_of_requests) {
+                    max_amount_of_requests = current_amount_of_requests;
+                    result_higher_timestamp = higher_timestamp;
+                    result_lower_timestamp = lower_timestamp;
+                }
+
+                ShiftArray(amount_of_requests_in_second, parameters.window);
+                ++lower_timestamp;
+                ++higher_timestamp;
+            }
+        }
+
+        if (parameters.stats > 0 && entry.status[0] == '5') {
             UpdateStatistics(error_logs_stats, entry.request);
         }
 
@@ -119,8 +177,29 @@ void Analyze(const Parameters& parameters) {
         delete[] entry.status;
     }
 
-    SortByFrequency(error_logs_stats);
-    PrintStats(error_logs_stats, parameters.stats);
+    if (current_amount_of_requests > max_amount_of_requests) {
+        max_amount_of_requests = current_amount_of_requests;
+        result_lower_timestamp = lower_timestamp;
+        result_higher_timestamp = higher_timestamp;
+    }
+
+    delete[] line_buffer;
+    delete[] amount_of_requests_in_second;
+
+    if (parameters.stats > 0) {
+        SortByFrequency(error_logs_stats);
+        PrintStats(error_logs_stats, parameters.stats);
+    }
+
+    if (error_logs_stats.data != nullptr) {
+        delete[] error_logs_stats.data;
+    }
+
+    if (parameters.window > 0) {
+        std::cout << "\n[Window]:\n";
+        std::cout << result_lower_timestamp << " - " << result_higher_timestamp << " (";
+        std::cout << max_amount_of_requests << " request" << (max_amount_of_requests > 1 ? "s)" : ")");
+    }
 }
 
 char* GetSubstring(const char* src, uint32_t from, uint32_t to) {
@@ -169,6 +248,10 @@ bool ParseLogEntry(LogEntry& to, const char* raw_entry) {
     char* raw_local_time = GetSubstring(raw_entry, local_time_start + 1, local_time_end);
     to.timestamp = LocalTimeStringToTimestamp(raw_local_time);
     delete[] raw_local_time;
+
+    if (to.timestamp == 0) {
+        return false;
+    }
 
     int32_t request_start = local_time_end + 2;
     int32_t request_end = FindSubstring(raw_entry, "\"", request_start + 1);

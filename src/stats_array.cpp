@@ -26,9 +26,9 @@ void AddElement(StatsArray& array, RequestStatistic element) {
     ++array.size;
 }
 
-void SortByFrequency(RequestStatistic* data, uint32_t low, uint32_t high) {
-    uint32_t i = low;
-    uint32_t j = high;
+void SortByFrequency(RequestStatistic* data, int32_t low, int32_t high) {
+    int32_t i = low;
+    int32_t j = high;
     uint64_t pivot = data[(i + j) / 2].frequency;
 
     while (i <= j) {
@@ -59,5 +59,9 @@ void SortByFrequency(RequestStatistic* data, uint32_t low, uint32_t high) {
 }
 
 void SortByFrequency(StatsArray& array) {
+    if (array.size < 2) {
+        return;
+    }
+    
     SortByFrequency(array.data, 0, array.size - 1);
 }
