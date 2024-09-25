@@ -63,10 +63,10 @@ void PrintStats(const StatsArray& stats, int32_t amount) {
     }
 }
 
-void ShiftArray(uint32_t* array, uint32_t n) {
-    for (uint32_t i = 0; i < n - 1; ++i) {
-        array[i] = array[i + 1];
-    }
+void PrintWindow(uint64_t lower_timestamp, uint64_t higher_timestamp, uint32_t amount_of_requests) {
+    std::cout << "\n[Window]:\n";
+    std::cout << higher_timestamp << " - " << higher_timestamp << " (";
+    std::cout << amount_of_requests << " request" << (amount_of_requests > 1 ? "s)" : ")");
 }
 
 void AnalyzeLog(const Parameters& parameters) {
@@ -95,20 +95,22 @@ void AnalyzeLog(const Parameters& parameters) {
 
     StatsArray error_logs_stats;
 
+    // calculation of the "window"
     uint64_t lower_timestamp = 0;
     uint64_t higher_timestamp;
 
     uint32_t max_amount_of_requests = 0;
     uint32_t current_amount_of_requests = 0;
-    uint32_t amount_of_requests_on_lower = 0;
 
     uint64_t result_lower_timestamp = 0;
     uint64_t result_higher_timestamp = 0;
 
-    char* line_buffer = new char[kLineBufferSize];
-
     uint32_t* amount_of_requests_in_second = new uint32_t[parameters.window];
     std::fill(amount_of_requests_in_second, amount_of_requests_in_second + parameters.window, 0);
+
+    uint32_t array_offset = 0;
+
+    char* line_buffer = new char[kLineBufferSize];
     
     while (input_file.getline(line_buffer, kLineBufferSize)) {
         LogEntry entry;
@@ -142,11 +144,12 @@ void AnalyzeLog(const Parameters& parameters) {
         if (parameters.window != 0) {
             if (lower_timestamp == 0) {
                 lower_timestamp = entry.timestamp;
-                higher_timestamp = lower_timestamp + parameters.window;
+                higher_timestamp = lower_timestamp + parameters.window - 1;
             }
 
             if (entry.timestamp <= higher_timestamp) {
-                ++amount_of_requests_in_second[entry.timestamp - lower_timestamp];
+                uint32_t position_to_update = (array_offset + entry.timestamp - lower_timestamp) % parameters.window;
+                ++amount_of_requests_in_second[position_to_update];
                 ++current_amount_of_requests;
             } else {
                 if (max_amount_of_requests < current_amount_of_requests) {
@@ -155,7 +158,7 @@ void AnalyzeLog(const Parameters& parameters) {
                     result_lower_timestamp = lower_timestamp;
                 }
 
-                ShiftArray(amount_of_requests_in_second, parameters.window);
+                ++array_offset;
                 ++lower_timestamp;
                 ++higher_timestamp;
             }
@@ -196,9 +199,7 @@ void AnalyzeLog(const Parameters& parameters) {
     }
 
     if (parameters.window > 0) {
-        std::cout << "\n[Window]:\n";
-        std::cout << result_lower_timestamp << " - " << result_higher_timestamp << " (";
-        std::cout << max_amount_of_requests << " request" << (max_amount_of_requests > 1 ? "s)" : ")");
+        PrintWindow(result_lower_timestamp, result_higher_timestamp, max_amount_of_requests);
     }
 }
 
