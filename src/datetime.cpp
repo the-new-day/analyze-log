@@ -22,6 +22,7 @@ int8_t GetDaysInMonth(int8_t month, int16_t year) {
     if (month == 2 && IsLeapYear(year)) {
         return 29;
     }
+
     return kDaysInMonth[month - 1];
 }
 

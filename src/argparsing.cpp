@@ -73,7 +73,7 @@ Parameters ParseArguments(int argc, char** argv) {
 
     bool options_ended = false;
 
-    for (int32_t i = 1; i < argc; ++i) {
+    for (size_t i = 1; i < argc; ++i) {
         char* argument = argv[i];
 
         if (options_ended || argument[0] != '-') {

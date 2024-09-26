@@ -35,7 +35,7 @@ void ValidateParameters(const Parameters& parameters) {
 }
 
 void UpdateStatistics(StatsArray& statistics, const char* request) {
-    for (uint32_t i = 0; i < statistics.size; ++i) {
+    for (size_t i = 0; i < statistics.size; ++i) {
         if (std::strcmp(statistics.data[i].request, request) == 0) {
             ++statistics.data[i].frequency;
             return;
@@ -53,7 +53,7 @@ void UpdateStatistics(StatsArray& statistics, const char* request) {
 void PrintStats(const StatsArray& stats, int32_t amount) {
     std::cout << "\n[5XX requests statistics]:\n";
 
-    for (int i = 0; i < amount && i < stats.size; ++i) {
+    for (size_t i = 0; i < amount && i < stats.size; ++i) {
         std::cout << "* " << stats.data[i].request << " - " 
                   << stats.data[i].frequency << " request" << (stats.data[i].frequency > 1 ? "s" : "") << '\n';
     }
@@ -243,7 +243,7 @@ int32_t FindSubstring(const char* haystack, const char* needle, int32_t start_fr
 }
 
 bool IsNumeric(const char* str) {
-    for (int i = 0; i < std::strlen(str); ++i) {
+    for (size_t i = 0; i < std::strlen(str); ++i) {
         if (!std::isdigit(str[i])) {
             return false;
         }

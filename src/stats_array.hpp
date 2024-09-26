@@ -5,8 +5,8 @@
 #include <cstdint>
 
 struct StatsArray {
-    uint64_t capacity = 0;
-    uint64_t size = 0;
+    size_t capacity = 0;
+    size_t size = 0;
     RequestStatistic* data = nullptr;
 };
 
