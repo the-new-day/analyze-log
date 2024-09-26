@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string_view>
 
-constexpr std::string_view kMonthsList[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+constexpr const char* kMonthsList[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 constexpr int8_t kDaysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
 struct DateTime {
@@ -20,3 +20,7 @@ int8_t MonthToNumber(std::string_view month);
 uint64_t DateTimeToTimestamp(const DateTime& datetime);
 
 uint64_t LocalTimeStringToTimestamp(std::string_view local_time);
+
+DateTime TimestampToDateTime(uint64_t timestamp);
+
+void TimestampToDateTimeString(uint64_t timestamp, char buffer[27]);

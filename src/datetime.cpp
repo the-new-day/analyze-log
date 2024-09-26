@@ -1,6 +1,8 @@
 #include "datetime.hpp"
 
 #include <charconv>
+#include <cstring>
+#include <iostream>
 
 int8_t MonthToNumber(std::string_view month) {
     for (int i = 1; i <= 12; ++i) {
@@ -125,8 +127,85 @@ uint64_t LocalTimeStringToTimestamp(std::string_view local_time) {
 
     int32_t seconds_shift = (hours_shift * 60 * 60) + (minutes_shift * 60); 
     if (timezone[0] == '+') {
-        return DateTimeToTimestamp(datetime) + seconds_shift;
+        return DateTimeToTimestamp(datetime) - seconds_shift;
     }
     
-    return DateTimeToTimestamp(datetime) - seconds_shift;
+    return DateTimeToTimestamp(datetime) + seconds_shift;
+}
+
+void Convert2DigitNumberToString(uint8_t number, char buffer[3]) {
+    if (number < 10) {
+        std::snprintf(buffer, 3, "0%d", number);
+    } else {
+        std::snprintf(buffer, 3, "%d", number);
+    }
+}
+
+void TimestampToDateTimeString(uint64_t timestamp, char buffer[27]) {
+    DateTime datetime = TimestampToDateTime(timestamp);
+
+    // format: 01/Jul/1995:00:00:01 -0400 (length: 26 + '\0')
+    char day[3];
+    char month[4];
+    char year[6];
+    char hours[3];
+    char minutes[3];
+    char seconds[3];
+    
+    Convert2DigitNumberToString(datetime.day, day);
+    Convert2DigitNumberToString(datetime.hours, hours);
+    Convert2DigitNumberToString(datetime.minutes, minutes);
+    Convert2DigitNumberToString(datetime.seconds, seconds);
+
+    std::sprintf(year, "%d", datetime.year);
+
+    std::sprintf(buffer, "%2s/%3s/%4s:%2s:%2s:%2s +0000", day, kMonthsList[datetime.month - 1], year, hours, minutes, seconds);
+
+    return;
+}
+
+DateTime TimestampToDateTime(uint64_t timestamp) {
+    DateTime datetime;
+
+    uint32_t seconds_in_current_day = timestamp % (24 * 60 * 60);
+
+    datetime.seconds = seconds_in_current_day % 60;
+    datetime.minutes = (seconds_in_current_day / 60) % 60;
+    datetime.hours = seconds_in_current_day / (60 * 60);
+
+    int32_t days_left = (timestamp - seconds_in_current_day) / (60 * 60 * 24);
+
+    uint16_t year;
+    for (year = 1970; days_left >= 365;) {
+        ++year;
+        days_left -= (IsLeapYear(year) ? 366 : 365);
+    }
+
+    datetime.year = year;
+    if (IsLeapYear(year)) {
+        ++days_left;
+    }
+
+    ++days_left;
+
+    uint8_t month = 0;
+    while (days_left > 0) {
+        if (month == 1 && IsLeapYear(year)) {
+            days_left -= 29;
+        } else {
+            days_left -= kDaysInMonth[month];
+        }
+
+        ++month;
+    }
+    
+    datetime.month = month;
+
+    if (month == 2 && IsLeapYear(year)) {
+        datetime.day = days_left + 29;
+    } else {
+        datetime.day = days_left + kDaysInMonth[month - 1];
+    }
+
+    return datetime;
 }

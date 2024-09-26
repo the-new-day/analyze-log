@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <string_view>
 
 struct Parameters {
     char* output_path = nullptr;

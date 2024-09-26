@@ -28,7 +28,7 @@ void ValidateParameters(const Parameters& parameters) {
 
     if (parameters.logs_filename != nullptr && !std::filesystem::exists(parameters.logs_filename)) {
         std::stringstream error_message;
-        error_message << "Cannot find file \"" << parameters.logs_filename << '"';
+        error_message << "Cannot find file: \"" << parameters.logs_filename << '"';
 
         throw std::invalid_argument(error_message.str());
     }
@@ -64,9 +64,21 @@ void PrintStats(const StatsArray& stats, int32_t amount) {
 }
 
 void PrintWindow(uint64_t lower_timestamp, uint64_t higher_timestamp, uint32_t amount_of_requests) {
+    char higher_time[27];
+    char lower_time[27];
+
+    TimestampToDateTimeString(higher_timestamp, higher_time);
+    TimestampToDateTimeString(lower_timestamp, lower_time);
+
     std::cout << "\n[Window]:\n";
-    std::cout << higher_timestamp << " - " << higher_timestamp << " (";
+    std::cout << '[' << lower_time << "] - [" << higher_time << "] (";
     std::cout << amount_of_requests << " request" << (amount_of_requests > 1 ? "s)" : ")");
+}
+
+void ShiftArray(uint32_t* array, uint32_t n) {
+    for (uint32_t i = 0; i < n - 1; ++i) {
+        array[i] = array[i + 1];
+    }
 }
 
 void AnalyzeLog(const Parameters& parameters) {
@@ -105,19 +117,21 @@ void AnalyzeLog(const Parameters& parameters) {
     uint64_t result_lower_timestamp = 0;
     uint64_t result_higher_timestamp = 0;
 
+    uint64_t last_timestamp;
+
     uint32_t* amount_of_requests_in_second = new uint32_t[parameters.window];
     std::fill(amount_of_requests_in_second, amount_of_requests_in_second + parameters.window, 0);
 
     uint32_t array_offset = 0;
 
     char* line_buffer = new char[kLineBufferSize];
-    
+
     while (input_file.getline(line_buffer, kLineBufferSize)) {
         LogEntry entry;
         
         if (!ParseLogEntry(entry, line_buffer)) {
             if (parameters.invalid_lines_output_path != nullptr) {
-                invalid_lines_output_file << line_buffer << '\n';
+                invalid_lines_output_file << line_buffer << std::endl;
             }
 
             if (entry.remote_addr != nullptr) {
@@ -147,49 +161,63 @@ void AnalyzeLog(const Parameters& parameters) {
                 higher_timestamp = lower_timestamp + parameters.window - 1;
             }
 
-            if (entry.timestamp <= higher_timestamp) {
-                uint32_t position_to_update = (array_offset + entry.timestamp - lower_timestamp) % parameters.window;
-                ++amount_of_requests_in_second[position_to_update];
-                ++current_amount_of_requests;
+            if (entry.timestamp >= lower_timestamp && entry.timestamp <= higher_timestamp) {
+                ++amount_of_requests_in_second[(array_offset + entry.timestamp - lower_timestamp) % parameters.window];
             } else {
-                if (max_amount_of_requests < current_amount_of_requests) {
+                if (current_amount_of_requests > max_amount_of_requests) {
                     max_amount_of_requests = current_amount_of_requests;
                     result_higher_timestamp = higher_timestamp;
                     result_lower_timestamp = lower_timestamp;
                 }
+                
+                higher_timestamp = entry.timestamp;
 
-                ++array_offset;
-                ++lower_timestamp;
-                ++higher_timestamp;
+                while (lower_timestamp + parameters.window <= higher_timestamp) {
+                    current_amount_of_requests -= amount_of_requests_in_second[array_offset % parameters.window];
+                    amount_of_requests_in_second[array_offset % parameters.window] = 0;
+
+                    ++array_offset;
+                    ++lower_timestamp;
+                }
+
+                ++amount_of_requests_in_second[(array_offset + parameters.window - 1) % parameters.window];
             }
+
+            ++current_amount_of_requests;
         }
 
-        if (parameters.stats > 0 && entry.status[0] == '5') {
+        if (parameters.output_path != nullptr && parameters.stats > 0 && entry.status[0] == '5') {
             UpdateStatistics(error_logs_stats, entry.request);
         }
 
         if (parameters.output_path != nullptr && entry.status[0] == '5') {
-            output_file << line_buffer << '\n';
+            output_file << line_buffer << std::endl;
             if (parameters.need_print) {
-                std::cout << line_buffer << '\n';
+                std::cout << line_buffer << std::endl;
             }
         }
 
         delete[] entry.remote_addr;
         delete[] entry.request;
         delete[] entry.status;
+
+        last_timestamp = entry.timestamp;
     }
 
     if (current_amount_of_requests > max_amount_of_requests) {
         max_amount_of_requests = current_amount_of_requests;
-        result_lower_timestamp = lower_timestamp;
         result_higher_timestamp = higher_timestamp;
+        result_lower_timestamp = lower_timestamp;
     }
 
     delete[] line_buffer;
     delete[] amount_of_requests_in_second;
 
-    if (parameters.stats > 0) {
+    if (result_higher_timestamp > last_timestamp) {
+        result_higher_timestamp = last_timestamp;
+    }
+
+    if (parameters.output_path != nullptr && parameters.stats > 0) {
         SortByFrequency(error_logs_stats);
         PrintStats(error_logs_stats, parameters.stats);
     }
