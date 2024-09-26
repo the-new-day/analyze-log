@@ -75,12 +75,6 @@ void PrintWindow(uint64_t lower_timestamp, uint64_t higher_timestamp, uint32_t a
     std::cout << amount_of_requests << " request" << (amount_of_requests > 1 ? "s)" : ")");
 }
 
-void ShiftArray(uint32_t* array, uint32_t n) {
-    for (uint32_t i = 0; i < n - 1; ++i) {
-        array[i] = array[i + 1];
-    }
-}
-
 void AnalyzeLog(const Parameters& parameters) {
     ValidateParameters(parameters);
 
