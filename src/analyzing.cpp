@@ -1,5 +1,5 @@
 #include "analyzing.hpp"
-#include "stats_array.hpp"
+#include "dynamic_arrays.hpp"
 #include "datetime.hpp"
 
 #include <iostream>
@@ -120,26 +120,20 @@ void AnalyzeLog(const Parameters& parameters) {
 
     char* line_buffer = new char[kLineBufferSize];
 
+    LogEntry entry;
+
+    uint64_t lines_analyzed = 0;
+    uint64_t invalid_lines_amount = 0;
+
     while (input_file.getline(line_buffer, kLineBufferSize)) {
-        LogEntry entry;
-        
+        ++lines_analyzed;
+
         if (!ParseLogEntry(entry, line_buffer)) {
             if (parameters.invalid_lines_output_path != nullptr) {
                 invalid_lines_output_file << line_buffer << std::endl;
             }
 
-            if (entry.remote_addr != nullptr) {
-                delete[] entry.remote_addr;
-            }
-
-            if (entry.request != nullptr) {
-                delete[] entry.request;
-            }
-
-            if (entry.status != nullptr) {
-                delete[] entry.status;
-            }
-
+            ++invalid_lines_amount;
             continue;
         }
 
@@ -180,32 +174,42 @@ void AnalyzeLog(const Parameters& parameters) {
             ++current_amount_of_requests;
         }
 
-        if (parameters.output_path != nullptr && parameters.stats > 0 && entry.status[0] == '5') {
-            UpdateStatistics(error_logs_stats, entry.request);
+        if (parameters.output_path != nullptr && parameters.stats > 0 && entry.status.data[0] == '5') {
+            UpdateStatistics(error_logs_stats, entry.request.data);
         }
 
-        if (parameters.output_path != nullptr && entry.status[0] == '5') {
+        if (parameters.output_path != nullptr && entry.status.data[0] == '5') {
             output_file << line_buffer << std::endl;
             if (parameters.need_print) {
                 std::cout << line_buffer << std::endl;
             }
         }
 
-        delete[] entry.remote_addr;
-        delete[] entry.request;
-        delete[] entry.status;
-
         last_timestamp = entry.timestamp;
     }
+
+    std::cout << "Analyzed " << lines_analyzed << " lines, " << invalid_lines_amount << " were invalid.\n";
+
+    if (entry.remote_addr.data != nullptr) {
+        delete[] entry.remote_addr.data;
+    }
+
+    if (entry.request.data != nullptr) {
+        delete[] entry.request.data;
+    }
+
+    if (entry.status.data != nullptr) {
+        delete[] entry.status.data;
+    }
+
+    delete[] line_buffer;
+    delete[] amount_of_requests_in_second;
 
     if (current_amount_of_requests > max_amount_of_requests) {
         max_amount_of_requests = current_amount_of_requests;
         result_higher_timestamp = higher_timestamp;
         result_lower_timestamp = lower_timestamp;
     }
-
-    delete[] line_buffer;
-    delete[] amount_of_requests_in_second;
 
     if (result_higher_timestamp > last_timestamp) {
         result_higher_timestamp = last_timestamp;
@@ -223,18 +227,6 @@ void AnalyzeLog(const Parameters& parameters) {
     if (parameters.window > 0) {
         PrintWindow(result_lower_timestamp, result_higher_timestamp, max_amount_of_requests);
     }
-}
-
-char* GetSubstring(const char* src, uint32_t from, uint32_t to) {
-    if (to < from) {
-        return nullptr;
-    }
-    
-    char* result = new char[to - from + 1];
-    std::strncpy(result, src + from, to - from);
-    result[to - from] = '\0';
-
-    return result;
 }
 
 int32_t FindSubstring(const char* haystack, const char* needle, int32_t start_from = 0) {
@@ -259,7 +251,7 @@ bool ParseLogEntry(LogEntry& to, const char* raw_entry) {
         return false;
     }
 
-    to.remote_addr = GetSubstring(raw_entry, 0, remote_addr_length);
+    SetString(to.remote_addr, raw_entry, remote_addr_length);
 
     int32_t local_time_start = remote_addr_length + std::strlen(" - - ");
     int32_t local_time_end = FindSubstring(raw_entry, "]", local_time_start);
@@ -268,9 +260,9 @@ bool ParseLogEntry(LogEntry& to, const char* raw_entry) {
         return false;
     }
 
-    char* raw_local_time = GetSubstring(raw_entry, local_time_start + 1, local_time_end);
+    int32_t local_time_length = local_time_end - local_time_start - 1;
+    std::string_view raw_local_time = std::string_view(raw_entry + local_time_start + 1, local_time_length);
     to.timestamp = LocalTimeStringToTimestamp(raw_local_time);
-    delete[] raw_local_time;
 
     if (to.timestamp == 0) {
         return false;
@@ -283,7 +275,7 @@ bool ParseLogEntry(LogEntry& to, const char* raw_entry) {
         return false;
     }
 
-    to.request = GetSubstring(raw_entry, request_start + 1, request_end);
+    SetString(to.request, raw_entry + request_start + 1, (request_end - request_start - 1));
 
     int32_t status_start = request_end + 2;
     int32_t status_end = FindSubstring(raw_entry, " ", status_start);
@@ -292,14 +284,11 @@ bool ParseLogEntry(LogEntry& to, const char* raw_entry) {
         return false;
     }
 
-    char* raw_status = GetSubstring(raw_entry, status_start, status_end);
+    SetString(to.status, raw_entry + status_start, (status_end - status_start));
 
-    if (!IsNumeric(raw_status)) {
-        delete[] raw_status;
+    if (!IsNumeric(to.status.data)) {
         return false;
     }
-
-    to.status = raw_status;
 
     int32_t bytes_sent_start = status_end + 1;
 
@@ -316,7 +305,6 @@ bool ParseLogEntry(LogEntry& to, const char* raw_entry) {
         bytes_sent = std::strtoll(raw_entry + bytes_sent_start, &pos, 10);
 
         if (*pos != 0) {
-            delete[] raw_local_time;
             return false;
         }
     }

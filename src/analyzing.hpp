@@ -1,23 +1,19 @@
 #pragma once
 
 #include "argparsing.hpp"
+#include "dynamic_arrays.hpp"
 
 #include <cstdint>
 
-const int32_t kLineBufferSize = 8192;
+const int32_t kLineBufferSize = 16384;
 
 struct LogEntry {
-    char* remote_addr = nullptr;
-    char* request = nullptr;
-    char* status = nullptr;
+    DynamicString remote_addr;
+    DynamicString request;
+    DynamicString status;
     
     uint64_t timestamp = 0;
     int64_t bytes_sent = -1;
-};
-
-struct RequestStatistic {
-    char* request = nullptr;
-    uint64_t frequency = 0;
 };
 
 void AnalyzeLog(const Parameters& parameters);

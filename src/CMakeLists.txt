@@ -1,1 +1,1 @@
-add_executable(${PROJECT_NAME} main.cpp analyzing.cpp stats_array.cpp argparsing.cpp datetime.cpp)
+add_executable(${PROJECT_NAME} main.cpp dynamic_arrays.cpp analyzing.cpp argparsing.cpp datetime.cpp)
