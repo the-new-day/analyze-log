@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <sstream>
+#include <cstddef>
 
 constexpr const char* kMissingArgumentMsg{"Unspecified argument value (unexpected end of argument sequence)"};
 
@@ -68,6 +69,55 @@ int64_t ParseInt(std::string_view str) {
     return result;
 }
 
+bool SetFlag(Parameters& parameters, char* name) {
+    if (std::strcmp(name, "--print") == 0 || std::strcmp(name, "-p") == 0) {
+        parameters.need_print = true;
+        return true;
+    } else if (std::strcmp(name, "--help") == 0 || std::strcmp(name, "-h") == 0) {
+        parameters.need_help = true;
+        return true;
+    }
+
+    return false;
+}
+
+void ParseOption(Parameters& parameters, char* argument, size_t name_length, char* raw_value) {
+    if (std::strncmp(argument, "--output", name_length) == 0 || std::strncmp(argument, "-o", name_length) == 0) {
+        parameters.output_path = raw_value;
+    } else if (std::strncmp(argument, "-o", 2) == 0) {
+        parameters.output_path = raw_value + 2;
+    } else if (std::strncmp(argument, "--stats", name_length) == 0 || std::strncmp(argument, "-s", name_length) == 0) {
+        parameters.stats = ParseInt(raw_value);
+    } else if (std::strncmp(argument, "-s", 2) == 0) {
+        parameters.stats = ParseInt(raw_value + 2);
+    }else if (std::strncmp(argument, "--window", name_length) == 0 || std::strncmp(argument, "-w", name_length) == 0) {
+        parameters.window = ParseInt(raw_value);
+    } else if (std::strncmp(argument, "-w", 2) == 0) {
+        parameters.window = ParseInt(raw_value + 2);
+    } else if (std::strncmp(argument, "--from", name_length) == 0 || std::strncmp(argument, "-f", name_length) == 0) {
+        parameters.from_time = ParseInt(raw_value);
+    } else if (std::strncmp(argument, "-f", 2) == 0) {
+        parameters.from_time = ParseInt(raw_value + 2);
+    } else if (std::strncmp(argument, "--to", name_length) == 0 || std::strncmp(argument, "-t", name_length) == 0) {
+        parameters.to_time = ParseInt(raw_value);
+    } else if (std::strncmp(argument, "-t", 2) == 0) {
+        parameters.to_time = ParseInt(raw_value + 2);
+    } else if (std::strncmp(argument, "--invalid-lines-output", name_length) == 0 || std::strncmp(argument, "-i", name_length) == 0) {
+        parameters.invalid_lines_output_path = raw_value;
+    } else if (std::strncmp(argument, "-i", 2) == 0) {
+        parameters.invalid_lines_output_path = raw_value + 2;
+    } else {
+        std::stringstream error_message;
+        error_message << "Unknown argument: \"" << argument << '"';
+
+        throw std::invalid_argument(error_message.str());
+    }
+}
+
+void ParseOption(Parameters& parameters, char* argument) {
+    char* equal_sign = std::strchr(argument, '=');
+}
+
 Parameters ParseArguments(int argc, char** argv) {
     Parameters parameters;
 
@@ -76,7 +126,7 @@ Parameters ParseArguments(int argc, char** argv) {
     for (size_t i = 1; i < argc; ++i) {
         char* argument = argv[i];
 
-        if (options_ended || argument[0] != '-') {
+        if (options_ended || argument[0] != '-' || std::strlen(argument) == 1) {
             parameters.logs_filename = argument;
             continue;
         }
@@ -86,81 +136,34 @@ Parameters ParseArguments(int argc, char** argv) {
             continue;
         }
 
-        if (std::strcmp(argument, "--output") == 0 || std::strcmp(argument, "-o") == 0) {
-            if (i == argc - 1) {
-                throw std::runtime_error(kMissingArgumentMsg);
-            }
-
-            parameters.output_path = argv[++i];
-        } else if (std::strncmp(argument, "-o", 2) == 0) {
-            parameters.output_path = argument + 2;
-        } else if (std::strncmp(argument, "--output=", 9) == 0) {
-            parameters.output_path = argument + 9;
-        } else if (std::strcmp(argument, "--stats") == 0 || std::strcmp(argument, "-s") == 0) {
-            if (i == argc - 1) {
-                throw std::runtime_error(kMissingArgumentMsg);
-            }
-
-            parameters.stats = ParseInt(argv[++i]);
-        } else if (std::strncmp(argument, "-s", 2) == 0) {
-            parameters.stats = ParseInt(argument + 2);
-        } else if (std::strncmp(argument, "--stats=", 8) == 0) {
-            parameters.stats = ParseInt(argument + 8);
-        } else if (std::strcmp(argument, "--window") == 0 || std::strcmp(argument, "-w") == 0) {
-            if (i == argc - 1) {
-                throw std::runtime_error(kMissingArgumentMsg);
-            }
-
-            parameters.window = ParseInt(argv[++i]);
-        } else if (std::strncmp(argument, "-w", 2) == 0) {
-            parameters.window = ParseInt(argument + 2);
-        } else if (std::strncmp(argument, "--window=", 9) == 0) {
-            parameters.window = ParseInt(argument + 9);
-        } else if (std::strcmp(argument, "--from") == 0 || std::strcmp(argument, "-f") == 0) {
-            if (i == argc - 1) {
-                throw std::runtime_error(kMissingArgumentMsg);
-            }
-
-            parameters.from_time = ParseInt(argv[++i]);
-        } else if (std::strncmp(argument, "-f", 2) == 0) {
-            parameters.from_time = ParseInt(argument + 2);
-        } else if (std::strncmp(argument, "--from=", 7) == 0) {
-            parameters.from_time = ParseInt(argument + 7);
-        } else if (std::strcmp(argument, "--to") == 0 || std::strcmp(argument, "-t") == 0) {
-            if (i == argc - 1) {
-                throw std::runtime_error(kMissingArgumentMsg);
-            }
-
-            parameters.to_time = ParseInt(argv[++i]);
-        } else if (std::strncmp(argument, "-t", 2) == 0) {
-            parameters.to_time = ParseInt(argument + 2);
-        } else if (std::strncmp(argument, "--to=", 5) == 0) {
-            parameters.to_time = ParseInt(argument + 5);
-        } else if (std::strcmp(argument, "--print") == 0 || std::strcmp(argument, "-p") == 0) {
-            parameters.need_print = true;
-        } else if (std::strcmp(argument, "--help") == 0 || std::strcmp(argument, "-h") == 0) {
-            parameters.need_help = true;
-        } else if (std::strcmp(argument, "--invalid-lines-output") == 0 || std::strcmp(argument, "-i") == 0) {
-            if (i == argc - 1) {
-                throw std::runtime_error(kMissingArgumentMsg);
-            }
-
-            parameters.invalid_lines_output_path = argv[++i];
-        } else if (std::strncmp(argument, "-i", 2) == 0) {
-            parameters.invalid_lines_output_path = argument + 2;
-        } else if (std::strncmp(argument, "--invalid-lines-output=", 23) == 0) {
-            parameters.invalid_lines_output_path = argument + 23;
-        } else {
-            std::stringstream error_message;
-            error_message << "Unknown argument: \"" << argument << '"';
-
-            throw std::invalid_argument(error_message.str());
+        if (SetFlag(parameters, argument)) {
+            continue;
         }
+
+        char* raw_value = nullptr;
+        size_t name_length;
+        char* equal_sign = std::strchr(argument, '=');
+        
+        if (argument[1] != '-' && std::strlen(argument) > 2) {
+            // for arguments like "-opath"
+            name_length = 2;
+            raw_value = argument + 2;
+        } else if (equal_sign != nullptr) {
+            name_length = equal_sign - argument;
+            raw_value = argument + name_length + 1;
+        } else if (i != argc - 1) {
+            name_length = std::strlen(argument);
+            raw_value = argv[++i];
+        } else {
+            throw std::runtime_error(kMissingArgumentMsg);
+        }
+        
+        ParseOption(parameters, argument, name_length, raw_value);
     }
     
     if (parameters.logs_filename == nullptr && !parameters.need_help) {
         throw std::runtime_error("No logs filename is specified");
-    } else {
-        return parameters;
     }
+
+    return parameters;
 }
