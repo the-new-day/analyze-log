@@ -1,4 +1,5 @@
 #include <iostream>
+#include <optional>
 
 #include "analyzing.hpp"
 
@@ -26,8 +27,15 @@ int main(int argc, char** argv){
         ShowHelpMessage();
         return EXIT_SUCCESS;
     }
+
+    std::optional<const char*> analyzing_error = AnalyzeLog(params.value());
     
-    AnalyzeLog(params.value());
+    if (analyzing_error.has_value()) {
+        std::cerr << "An error occured:\n" << analyzing_error.value();
+        std::cout << "\nUse --help to see information about supported commands";
+
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }

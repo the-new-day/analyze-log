@@ -5,6 +5,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstddef>
+#include <filesystem>
 
 constexpr const char* kMissingArgumentMsg{"Unspecified argument value (unexpected end of argument sequence)"};
 
@@ -53,11 +54,34 @@ void ShowHelpMessage() {
     std::cout << *GetParameterInfo("-h");
 }
 
-std::expected<int64_t, const char*> ParseInt(const char* str) {
-    int64_t result;
-    std::from_chars_result convertion_result = std::from_chars(str, str + std::strlen(str), result);
+std::optional<ParametersParseError> ValidateParameters(const Parameters& parameters) {
+    if (parameters.stats < 0 || parameters.window < 0 || parameters.from_time < 0 || parameters.to_time < 0) {
+        return MakeParametersParseError("Negative value for a positive integer argument");
+    }
 
-    if (convertion_result.ec == std::errc::invalid_argument || convertion_result.ptr != str + std::strlen(str)) {
+    if (parameters.logs_filename != nullptr && !std::filesystem::exists(parameters.logs_filename)) {
+        return MakeParametersParseError("Cannot find input file");
+    }
+
+    if (parameters.logs_filename == nullptr && !parameters.need_help) {
+        return MakeParametersParseError("No logs filename is specified");
+    }
+
+    return std::nullopt;
+}
+
+ParametersParseError MakeParametersParseError(const char* message, const char* argument) {
+    ParametersParseError error;
+    error.message = message;
+    error.argument = argument;
+    return error;
+}
+
+std::expected<int64_t, const char*> ParseInt(std::string_view str) {
+    int64_t result;
+    std::from_chars_result convertion_result = std::from_chars(str.data(), str.data() + str.size(), result);
+
+    if (convertion_result.ec == std::errc::invalid_argument || convertion_result.ptr != str.end()) {
         return std::unexpected{"Cannot parse an integer from non-numeric data"};
     } else if (convertion_result.ec == std::errc::result_out_of_range) {
         return std::unexpected{"The number is too large"};
@@ -78,22 +102,18 @@ bool SetFlag(Parameters& parameters, char* name) {
     return false;
 }
 
-std::expected<bool, ParametersParseError> ParseOption(Parameters& parameters, char* argument, size_t name_length, char* raw_value) {
+std::optional<ParametersParseError> ParseOption(Parameters& parameters, char* argument, size_t name_length, char* raw_value) {
     if (std::strncmp(argument, "--output", name_length) == 0 || std::strncmp(argument, "-o", name_length) == 0) {
         parameters.output_path = raw_value;
-        return true;
+        return std::nullopt;
     } else if (std::strncmp(argument, "--invalid-lines-output", name_length) == 0 || std::strncmp(argument, "-i", name_length) == 0) {
         parameters.invalid_lines_output_path = raw_value;
-        return true;
+        return std::nullopt;
     }
 
     std::expected<int64_t, const char*> number = ParseInt(raw_value);
     if (!number.has_value()) {
-        ParametersParseError error;
-        error.message = number.error();
-        error.argument = argument;
-
-        return std::unexpected{error};
+        return MakeParametersParseError(number.error(), argument);
     }
     
     if (std::strncmp(argument, "--stats", name_length) == 0 || std::strncmp(argument, "-s", 2) == 0) {
@@ -105,14 +125,10 @@ std::expected<bool, ParametersParseError> ParseOption(Parameters& parameters, ch
     } else if (std::strncmp(argument, "--to", name_length) == 0 || std::strncmp(argument, "-t", 2) == 0) {
         parameters.to_time = number.value();
     } else {
-        ParametersParseError error;
-        error.message = "Unknown argument";
-        error.argument = argument;
-
-        return std::unexpected{error};
+        return MakeParametersParseError("Unknown argument", argument);
     }
 
-    return true;
+    return std::nullopt;
 }
 
 std::expected<Parameters, ParametersParseError> ParseArguments(int argc, char** argv) {
@@ -152,23 +168,21 @@ std::expected<Parameters, ParametersParseError> ParseArguments(int argc, char** 
             name_length = std::strlen(argument);
             raw_value = argv[++i];
         } else {
-            ParametersParseError error;
-            error.message = kMissingArgumentMsg;
-            return std::unexpected{error};
+            return std::unexpected{MakeParametersParseError(kMissingArgumentMsg)};
         }
 
-        std::expected<bool, ParametersParseError> parsing_result = 
+        std::optional<ParametersParseError> parsing_result = 
             ParseOption(parameters, argument, name_length, raw_value);
 
-        if (!parsing_result.has_value()) {
-            return std::unexpected{parsing_result.error()};
+        if (parsing_result.has_value()) {
+            return std::unexpected{parsing_result.value()};
         }
     }
     
-    if (parameters.logs_filename == nullptr && !parameters.need_help) {
-        ParametersParseError error;
-        error.message = "No logs filename is specified";
-        return std::unexpected{error};
+    std::optional<ParametersParseError> validation_result = ValidateParameters(parameters);
+
+    if (validation_result.has_value()) {
+        return std::unexpected{validation_result.value()};
     }
 
     return parameters;

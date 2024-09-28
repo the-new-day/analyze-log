@@ -24,10 +24,12 @@ struct Parameters {
     char* invalid_lines_output_path = nullptr;
 };
 
+ParametersParseError MakeParametersParseError(const char* message, const char* argument = nullptr);
+
 std::expected<Parameters, ParametersParseError> ParseArguments(int argc, char** argv);
 
 std::expected<const char*, const char*> GetParameterInfo(const char* parameter);
 
 void ShowHelpMessage();
 
-std::expected<int64_t, const char*> ParseInt(const char* str);
+std::expected<int64_t, const char*> ParseInt(std::string_view str);

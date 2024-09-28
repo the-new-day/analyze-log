@@ -4,6 +4,7 @@
 #include "dynamic_arrays.hpp"
 
 #include <cstdint>
+#include <optional>
 
 const int32_t kLineBufferSize = 16384;
 
@@ -16,6 +17,10 @@ struct LogEntry {
     int64_t bytes_sent = -1;
 };
 
-void AnalyzeLog(const Parameters& parameters);
+struct AnalyzeLogError {
+
+};
+
+std::optional<const char*> AnalyzeLog(const Parameters& parameters);
 
 bool ParseLogEntry(LogEntry& to, const char* raw_entry);

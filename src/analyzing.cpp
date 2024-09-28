@@ -8,32 +8,6 @@
 #include <cstring>
 #include <sstream>
 
-void ValidateParameters(const Parameters& parameters) {
-    std::stringstream negative_value_error_message;
-    negative_value_error_message << "Negative value for a positive integer argument ";
-
-    if (parameters.stats < 0) {
-        negative_value_error_message << "--stats (-s): " << parameters.stats;
-        throw std::invalid_argument(negative_value_error_message.str());
-    } else if (parameters.window < 0) {
-        negative_value_error_message << "--window (-w): " << parameters.window;
-        throw std::invalid_argument(negative_value_error_message.str());
-    } else if (parameters.from_time < 0) {
-        negative_value_error_message << "--from (-f): " << parameters.from_time;
-        throw std::invalid_argument(negative_value_error_message.str());
-    } else if (parameters.to_time < 0) {
-        negative_value_error_message << "--to (-t): " << parameters.to_time;
-        throw std::invalid_argument(negative_value_error_message.str());
-    }
-
-    if (parameters.logs_filename != nullptr && !std::filesystem::exists(parameters.logs_filename)) {
-        std::stringstream error_message;
-        error_message << "Cannot find file: \"" << parameters.logs_filename << '"';
-
-        throw std::invalid_argument(error_message.str());
-    }
-}
-
 void UpdateStatistics(StatsArray& statistics, const char* request) {
     for (size_t i = 0; i < statistics.size; ++i) {
         if (std::strcmp(statistics.data[i].request, request) == 0) {
@@ -75,19 +49,17 @@ void PrintWindow(uint64_t lower_timestamp, uint64_t higher_timestamp, uint32_t a
     std::cout << amount_of_requests << " request" << (amount_of_requests > 1 ? "s)" : ")");
 }
 
-void AnalyzeLog(const Parameters& parameters) {
-    ValidateParameters(parameters);
-
+std::optional<const char*> AnalyzeLog(const Parameters& parameters) {
     std::ifstream input_file(parameters.logs_filename);
     if (input_file.fail()) {
-        throw std::runtime_error("Unable to read the input file");
+        return "Unable to read the input file";
     }
 
     std::ofstream output_file;
     if (parameters.output_path != nullptr) {
         output_file = std::ofstream(parameters.output_path);
         if (output_file.fail()) {
-            throw std::runtime_error("Unable to open the output file");
+            return "Unable to open the output file";
         }
     }
 
@@ -95,7 +67,7 @@ void AnalyzeLog(const Parameters& parameters) {
     if (parameters.invalid_lines_output_path != nullptr) {
         invalid_lines_output_file = std::ofstream(parameters.invalid_lines_output_path);
         if (output_file.fail()) {
-            throw std::runtime_error("Unable to open the invalid lines output file");
+            return "Unable to open the invalid lines output file";
         }
     }
 
@@ -233,11 +205,17 @@ void AnalyzeLog(const Parameters& parameters) {
     if (parameters.window > 0) {
         PrintWindow(result_lower_timestamp, result_higher_timestamp, max_amount_of_requests);
     }
+
+    return std::nullopt;
 }
 
-int32_t FindSubstring(const char* haystack, const char* needle, int32_t start_from = 0) {
+std::optional<size_t> FindSubstring(const char* haystack, const char* needle, size_t start_from = 0) {
     const char* search_result = std::strstr(haystack + start_from, needle);
-    return (search_result == nullptr) ? -1 : (search_result - haystack);
+    if (search_result == nullptr) {
+        return std::nullopt;
+    }
+
+    return search_result - haystack;
 }
 
 bool IsNumeric(const char* str) {
@@ -251,71 +229,73 @@ bool IsNumeric(const char* str) {
 }
 
 bool ParseLogEntry(LogEntry& to, const char* raw_entry) {
-    int32_t remote_addr_length = FindSubstring(raw_entry, " - - ");
+    std::optional<size_t> remote_addr_length = FindSubstring(raw_entry, " - - ");
 
-    if (remote_addr_length == -1) {
+    if (!remote_addr_length.has_value()) {
         return false;
     }
 
-    SetString(to.remote_addr, raw_entry, remote_addr_length);
+    SetString(to.remote_addr, raw_entry, remote_addr_length.value());
 
-    int32_t local_time_start = remote_addr_length + std::strlen(" - - ");
-    int32_t local_time_end = FindSubstring(raw_entry, "]", local_time_start);
+    size_t local_time_start = remote_addr_length.value() + std::strlen(" - - ");
+    std::optional<size_t> local_time_end = FindSubstring(raw_entry, "]", local_time_start);
 
-    if (raw_entry[local_time_start] != '[' || local_time_end == -1) {
+    if (raw_entry[local_time_start] != '[' || !local_time_end.has_value()) {
         return false;
     }
 
-    int32_t local_time_length = local_time_end - local_time_start - 1;
+    size_t local_time_length = local_time_end.value() - local_time_start - 1;
     std::string_view raw_local_time = std::string_view(raw_entry + local_time_start + 1, local_time_length);
-    to.timestamp = LocalTimeStringToTimestamp(raw_local_time);
+
+    std::optional<uint64_t> timestamp = LocalTimeStringToTimestamp(raw_local_time);
+    if (!timestamp.has_value()) {
+        return false;
+    }
+
+    to.timestamp = timestamp.value();
 
     if (to.timestamp == 0) {
         return false;
     }
 
-    int32_t request_start = local_time_end + 2;
-    int32_t request_end = FindSubstring(raw_entry, "\"", request_start + 1);
+    size_t request_start = local_time_end.value() + 2;
+    std::optional<size_t> request_end = FindSubstring(raw_entry, "\"", request_start + 1);
     
-    if (raw_entry[request_start] != '"' || raw_entry[request_start - 1] != ' ' || request_end == -1) {
+    if (raw_entry[request_start] != '"' || raw_entry[request_start - 1] != ' ' || !request_end.has_value()) {
         return false;
     }
 
-    SetString(to.request, raw_entry + request_start + 1, (request_end - request_start - 1));
+    SetString(to.request, raw_entry + request_start + 1, (request_end.value() - request_start - 1));
 
-    int32_t status_start = request_end + 2;
-    int32_t status_end = FindSubstring(raw_entry, " ", status_start);
+    size_t status_start = request_end.value() + 2;
+    std::optional<size_t> status_end = FindSubstring(raw_entry, " ", status_start);
     
-    if (raw_entry[status_start - 1] != ' ' || status_end == -1 || status_end - status_start != 3) {
+    if (raw_entry[status_start - 1] != ' ' || !status_end.has_value() || status_end.value() - status_start != 3) {
         return false;
     }
 
-    SetString(to.status, raw_entry + status_start, (status_end - status_start));
+    SetString(to.status, raw_entry + status_start, (status_end.value() - status_start));
 
     if (!IsNumeric(to.status.data)) {
         return false;
     }
 
-    int32_t bytes_sent_start = status_end + 1;
+    size_t bytes_sent_start = status_end.value() + 1;
 
     if (raw_entry[bytes_sent_start - 1] != ' ') {
         return false;
     }
 
-    int64_t bytes_sent;
-
     if (std::strlen(raw_entry + bytes_sent_start) == 1 && raw_entry[bytes_sent_start] == '-') {
-        bytes_sent = 0;
+        to.bytes_sent = 0;
     } else {
-        char* pos;
-        bytes_sent = std::strtoll(raw_entry + bytes_sent_start, &pos, 10);
-
-        if (*pos != 0) {
+        std::expected<int64_t, const char*> bytes_sent = ParseInt(raw_entry + bytes_sent_start);
+        if (!bytes_sent.has_value()) {
             return false;
         }
-    }
 
-    to.bytes_sent = bytes_sent;
+        to.bytes_sent = bytes_sent.value();
+    }
 
     return true;
 }
