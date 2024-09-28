@@ -3,25 +3,31 @@
 #include "analyzing.hpp"
 
 int main(int argc, char** argv){
-    try {
-        if (argc < 2) {
-            ShowHelpMessage();
-            return EXIT_SUCCESS;
+    if (argc < 2) {
+        ShowHelpMessage();
+        return EXIT_SUCCESS;
+    }
+
+    std::expected<Parameters, ParametersParseError> params = ParseArguments(argc, argv);
+    if (!params.has_value()) {
+        ParametersParseError error = params.error();
+
+        std::cerr << "An error occured:\n" << error.message;
+        if (error.argument != nullptr) {
+            std::cerr << '\n' << error.argument;
         }
 
-        Parameters params = ParseArguments(argc, argv);
-        if (params.need_help) {
-            ShowHelpMessage();
-            return EXIT_SUCCESS;
-        }
-
-        AnalyzeLog(params);
-    } catch (const std::exception& e) {
-        std::cerr << "An error occured:\n" << e.what();
         std::cout << "\nUse --help to see information about supported commands";
 
         return EXIT_FAILURE;
     }
+
+    if (params->need_help) {
+        ShowHelpMessage();
+        return EXIT_SUCCESS;
+    }
+    
+    AnalyzeLog(params.value());
 
     return EXIT_SUCCESS;
 }

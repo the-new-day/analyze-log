@@ -1,6 +1,13 @@
 #pragma once
 
 #include <cstdint>
+#include <expected>
+#include <string_view>
+
+struct ParametersParseError {
+    const char* message = nullptr;
+    const char* argument = nullptr;
+};
 
 struct Parameters {
     char* output_path = nullptr;
@@ -17,8 +24,10 @@ struct Parameters {
     char* invalid_lines_output_path = nullptr;
 };
 
-Parameters ParseArguments(int argc, char** argv);
+std::expected<Parameters, ParametersParseError> ParseArguments(int argc, char** argv);
 
-const char* GetParameterInfo(const char* parameter);
+std::expected<const char*, const char*> GetParameterInfo(const char* parameter);
 
 void ShowHelpMessage();
+
+std::expected<int64_t, const char*> ParseInt(const char* str);

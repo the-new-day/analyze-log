@@ -124,6 +124,7 @@ void AnalyzeLog(const Parameters& parameters) {
 
     uint64_t lines_analyzed = 0;
     uint64_t invalid_lines_amount = 0;
+    uint64_t server_error_lines_amount = 0;
 
     while (input_file.getline(line_buffer, kLineBufferSize)) {
         ++lines_analyzed;
@@ -174,6 +175,10 @@ void AnalyzeLog(const Parameters& parameters) {
             ++current_amount_of_requests;
         }
 
+        if (entry.status.data[0] == '5') {
+            ++server_error_lines_amount;
+        }
+
         if (parameters.output_path != nullptr && parameters.stats > 0 && entry.status.data[0] == '5') {
             UpdateStatistics(error_logs_stats, entry.request.data);
         }
@@ -188,7 +193,8 @@ void AnalyzeLog(const Parameters& parameters) {
         last_timestamp = entry.timestamp;
     }
 
-    std::cout << "Analyzed " << lines_analyzed << " lines, " << invalid_lines_amount << " were invalid.\n";
+    std::cout << "Analyzed " << lines_analyzed << " lines, " << server_error_lines_amount << " was with the code 5XX, "
+        << invalid_lines_amount << " were invalid.\n";
 
     if (entry.remote_addr.data != nullptr) {
         delete[] entry.remote_addr.data;
