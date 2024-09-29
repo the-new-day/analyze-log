@@ -112,17 +112,18 @@ std::optional<ParametersParseError> ParseOption(Parameters& parameters, char* ar
     }
 
     std::expected<int64_t, const char*> number = ParseInt(raw_value);
-    if (!number.has_value()) {
-        return MakeParametersParseError(number.error(), argument);
-    }
     
     if (std::strncmp(argument, "--stats", name_length) == 0 || std::strncmp(argument, "-s", 2) == 0) {
+        if (!number.has_value()) return MakeParametersParseError(number.error(), argument);
         parameters.stats = number.value();
     } else if (std::strncmp(argument, "--window", name_length) == 0 || std::strncmp(argument, "-w", 2) == 0) {
+        if (!number.has_value()) return MakeParametersParseError(number.error(), argument);
         parameters.window = number.value();
     } else if (std::strncmp(argument, "--from", name_length) == 0 || std::strncmp(argument, "-f", 2) == 0) {
+        if (!number.has_value()) return MakeParametersParseError(number.error(), argument);
         parameters.from_time = number.value();
     } else if (std::strncmp(argument, "--to", name_length) == 0 || std::strncmp(argument, "-t", 2) == 0) {
+        if (!number.has_value()) return MakeParametersParseError(number.error(), argument);
         parameters.to_time = number.value();
     } else {
         return MakeParametersParseError("Unknown argument", argument);
@@ -149,13 +150,15 @@ std::expected<Parameters, ParametersParseError> ParseArguments(int argc, char** 
             continue;
         }
 
-        if (SetFlag(parameters, argument)) {
-            continue;
-        }
-
         char* raw_value = nullptr;
         size_t name_length;
         char* equal_sign = std::strchr(argument, '=');
+
+        if (SetFlag(parameters, argument)) {
+            continue;
+        } else if (i == argc - 1 && equal_sign == nullptr) {
+            return std::unexpected{MakeParametersParseError("Unknown argument", argument)};
+        }
         
         if (argument[1] != '-' && std::strlen(argument) > 2) {
             // for arguments like "-opath"
