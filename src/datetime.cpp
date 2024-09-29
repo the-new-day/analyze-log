@@ -198,8 +198,6 @@ void TimestampToDateTimeString(uint64_t timestamp, char buffer[27]) {
     std::sprintf(year, "%d", datetime.year);
 
     std::sprintf(buffer, "%2s/%3s/%4s:%2s:%2s:%2s +0000", day, kMonthsList[datetime.month - 1], year, hours, minutes, seconds);
-
-    return;
 }
 
 DateTime TimestampToDateTime(uint64_t timestamp) {
@@ -214,11 +212,12 @@ DateTime TimestampToDateTime(uint64_t timestamp) {
     int32_t days_left = (timestamp - seconds_in_current_day) / (60 * 60 * 24);
 
     uint16_t year;
-    for (year = 1970; days_left >= 365; ++year) {
+    for (year = 1970; days_left >= (IsLeapYear(year) ? 366 : 365); ++year) {
         days_left -= (IsLeapYear(year) ? 366 : 365);
     }
 
     datetime.year = year;
+
     if (IsLeapYear(year)) {
         ++days_left;
     }
