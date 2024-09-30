@@ -7,27 +7,44 @@
 #include <cstddef>
 #include <filesystem>
 
-constexpr const char* kMissingArgumentMsg{"Unspecified argument value (unexpected end of argument sequence)"};
+const char* kStatsShortArg = "-s";
+const char* kStatsLongArg = "--stats";
+const char* kWindowShortArg = "-w";
+const char* kWindowLongArg = "--window";
+const char* kOutputShortArg = "-o";
+const char* kOutputLongArg = "--output";
+const char* kPrintShortArg = "-p";
+const char* kPrintLongArg = "--print";
+const char* kFromShortArg = "-f";
+const char* kFromLongArg = "--from";
+const char* kToShortArg = "-t";
+const char* kToLongArg = "--to";
+const char* kInvalidLinesShortArg = "-i";
+const char* kInvalidLinesLongArg = "--to";
+const char* kHelpShortArg = "-t";
+const char* kHelpLongArg = "--help";
 
-std::expected<const char*, const char*> GetParameterInfo(const char* parameter) {
-    if (std::strcmp(parameter, "--stats") == 0 || std::strcmp(parameter, "-s") == 0) {
+const char* kMissingArgumentMsg{"Unspecified argument value (unexpected end of argument sequence)"};
+
+std::expected<const char*, const char*> GetParameterInfo(std::string_view parameter) {
+    if (parameter == kStatsLongArg || parameter == kStatsShortArg) {
         return "--stats=<amount> | -s <amount>             [int, >= 0, default=10]       Output first n most frequent requests "
                "finished with code 5XX (in order of frequency)";
-    } else if (std::strcmp(parameter, "--window") == 0 || std::strcmp(parameter, "-w") == 0) {
+    } else if (parameter == kWindowLongArg || parameter == kWindowShortArg) {
         return "--window=<seconds> | -w <second>           [int, >= 0, default=0]        Output a window of n seconds on which number of "
                "requests was the highest. By default, no such window is calculated";
-    } else if (std::strcmp(parameter, "--from") == 0 || std::strcmp(parameter, "-f") == 0) {
+    } else if (parameter == kFromLongArg || parameter == kFromShortArg) {
         return "--from=<timestamp> | -f <timestamp>        [int, >= 0, default=smallest] Ignore time before the specified";
-    } else if (std::strcmp(parameter, "--to") == 0 || std::strcmp(parameter, "-t") == 0) {
+    } else if (parameter == kToLongArg || parameter == kToShortArg) {
         return "--to=<timestamp> | -t <timestamp>          [int, >= 0, default=greatest] Ignore time after the specified";
-    } else if (std::strcmp(parameter, "--output") == 0 || std::strcmp(parameter, "-o") == 0) {
+    } else if (parameter == kOutputLongArg || parameter == kOutputShortArg) {
         return "--output=<path> | -o <path>                [string, optional]            Path to the file to which 5XX requests will be written. "
                "If not specified, --stats and --print won't work.";
-    } else if (std::strcmp(parameter, "--print") == 0 || std::strcmp(parameter, "-p") == 0) {
+    } else if (parameter == kPrintLongArg || parameter == kPrintShortArg) {
         return "--print | -p                               [flag, optional]              If specified, 5XX requests will be printed to stdout";
-    } else if (std::strcmp(parameter, "--help") == 0 || std::strcmp(parameter, "-h") == 0) {
+    } else if (parameter == kHelpLongArg || parameter == kHelpShortArg) {
         return "--help | -h                                [flag, optional]              Show help and exit";
-    } else if (std::strcmp(parameter, "--invalid-lines-output") == 0 || std::strcmp(parameter, "-i") == 0) {
+    } else if (parameter == kInvalidLinesLongArg || parameter == kInvalidLinesShortArg) {
         return "--invalid-lines-output=<path> | -i <path>  [string, optional]            Path to the file to which "
                "invalid lines from the input file will be written";
     }
@@ -36,22 +53,16 @@ std::expected<const char*, const char*> GetParameterInfo(const char* parameter) 
 }
 
 void ShowHelpMessage() {
-    std::cout << "Usage: AnalyzeLog [OPTIONS] <logs_filename>\nPossible options:\n\t";
-    std::cout << *GetParameterInfo("-o");
-    std::cout << "\n\t";
-    std::cout << *GetParameterInfo("-p");
-    std::cout << "\n\t";
-    std::cout << *GetParameterInfo("-s");
-    std::cout << "\n\t";
-    std::cout << *GetParameterInfo("-w");
-    std::cout << "\n\t";
-    std::cout << *GetParameterInfo("-f");
-    std::cout << "\n\t";
-    std::cout << *GetParameterInfo("-t");
-    std::cout << "\n\t";
-    std::cout << *GetParameterInfo("-i");
-    std::cout << "\n\t";
-    std::cout << *GetParameterInfo("-h");
+    std::cout << "Usage: AnalyzeLog [OPTIONS] <logs_filename>" << std::endl << 
+        "Possible options:" << std::endl << "\t";
+    std::cout << *GetParameterInfo(kOutputLongArg) << std::endl << '\t';
+    std::cout << *GetParameterInfo(kPrintLongArg) << std::endl << '\t';
+    std::cout << *GetParameterInfo(kStatsLongArg) << std::endl << '\t';
+    std::cout << *GetParameterInfo(kWindowLongArg) << std::endl << '\t';
+    std::cout << *GetParameterInfo(kFromLongArg) << std::endl << '\t';
+    std::cout << *GetParameterInfo(kToLongArg) << std::endl << '\t';
+    std::cout << *GetParameterInfo(kInvalidLinesLongArg) << std::endl << '\t';
+    std::cout << *GetParameterInfo(kHelpLongArg) << std::endl << '\t';
 }
 
 std::optional<ParametersParseError> ValidateParameters(const Parameters& parameters) {
@@ -150,15 +161,13 @@ std::expected<Parameters, ParametersParseError> ParseArguments(int argc, char** 
             continue;
         }
 
+        if (SetFlag(parameters, argument)) {
+            continue;
+        }
+
         char* raw_value = nullptr;
         size_t name_length;
         char* equal_sign = std::strchr(argument, '=');
-
-        if (SetFlag(parameters, argument)) {
-            continue;
-        } else if (i == argc - 1 && equal_sign == nullptr) {
-            return std::unexpected{MakeParametersParseError("Unknown argument", argument)};
-        }
         
         if (argument[1] != '-' && std::strlen(argument) > 2) {
             // for arguments like "-opath"

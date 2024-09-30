@@ -28,7 +28,7 @@ ParametersParseError MakeParametersParseError(const char* message, const char* a
 
 std::expected<Parameters, ParametersParseError> ParseArguments(int argc, char** argv);
 
-std::expected<const char*, const char*> GetParameterInfo(const char* parameter);
+std::expected<const char*, const char*> GetParameterInfo(std::string_view parameter);
 
 void ShowHelpMessage();
 

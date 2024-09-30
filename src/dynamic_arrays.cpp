@@ -12,7 +12,7 @@ void AddElement(StatsArray& array, RequestStatistic element) {
         RequestStatistic* new_data = new RequestStatistic[array.capacity * 2];
         array.capacity *= 2;
 
-        for (uint64_t i = 0; i < array.size; ++i) {
+        for (size_t i = 0; i < array.size; ++i) {
             new_data[i] = array.data[i];
         }
 

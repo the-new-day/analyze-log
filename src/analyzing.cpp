@@ -97,9 +97,18 @@ std::optional<const char*> AnalyzeLog(const Parameters& parameters) {
     uint64_t lines_analyzed = 0;
     uint64_t invalid_lines_amount = 0;
     uint64_t server_error_lines_amount = 0;
+    uint64_t too_long_lines_amount = 0;
 
-    while (input_file.getline(line_buffer, kLineBufferSize)) {
+    while (input_file.good()) {
+        input_file.getline(line_buffer, kLineBufferSize);
         ++lines_analyzed;
+
+        if (input_file.fail()) {
+            input_file.clear();
+            input_file.ignore(UINT64_MAX, '\n');
+            ++too_long_lines_amount;
+            continue;
+        }
 
         if (!ParseLogEntry(entry, line_buffer)) {
             if (parameters.invalid_lines_output_path != nullptr) {
@@ -165,8 +174,8 @@ std::optional<const char*> AnalyzeLog(const Parameters& parameters) {
         last_timestamp = entry.timestamp;
     }
 
-    std::cout << "Analyzed " << lines_analyzed << " lines, " << server_error_lines_amount << " was with the code 5XX, "
-        << invalid_lines_amount << " were invalid.\n";
+    std::cout << "Analyzed " << lines_analyzed << " lines, " << server_error_lines_amount << " were with the code 5XX, "
+        << invalid_lines_amount << " were invalid, " << too_long_lines_amount << " were ignored (too long)." << std::endl;
 
     if (entry.remote_addr.data != nullptr) {
         delete[] entry.remote_addr.data;
