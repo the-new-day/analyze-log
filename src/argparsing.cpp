@@ -21,7 +21,7 @@ const char* kToShortArg = "-t";
 const char* kToLongArg = "--to";
 const char* kInvalidLinesShortArg = "-i";
 const char* kInvalidLinesLongArg = "--invalid-lines-output";
-const char* kHelpShortArg = "-t";
+const char* kHelpShortArg = "-h";
 const char* kHelpLongArg = "--help";
 
 const char* kMissingArgumentMsg{"Unspecified argument value (unexpected end of argument sequence)"};
