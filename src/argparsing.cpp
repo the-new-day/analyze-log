@@ -20,7 +20,7 @@ const char* kFromLongArg = "--from";
 const char* kToShortArg = "-t";
 const char* kToLongArg = "--to";
 const char* kInvalidLinesShortArg = "-i";
-const char* kInvalidLinesLongArg = "--to";
+const char* kInvalidLinesLongArg = "--invalid-lines-output";
 const char* kHelpShortArg = "-t";
 const char* kHelpLongArg = "--help";
 
@@ -53,6 +53,7 @@ std::expected<const char*, const char*> GetParameterInfo(std::string_view parame
 }
 
 void ShowHelpMessage() {
+    std::cout << *GetParameterInfo(kInvalidLinesLongArg) << '\n';
     std::cout << "Usage: AnalyzeLog [OPTIONS] <logs_filename>" << std::endl << 
         "Possible options:" << std::endl << "\t";
     std::cout << *GetParameterInfo(kOutputLongArg) << std::endl << '\t';
@@ -102,10 +103,10 @@ std::expected<int64_t, const char*> ParseInt(std::string_view str) {
 }
 
 bool SetFlag(Parameters& parameters, char* name) {
-    if (std::strcmp(name, "--print") == 0 || std::strcmp(name, "-p") == 0) {
+    if (std::strcmp(name, kPrintLongArg) == 0 || std::strcmp(name, kPrintShortArg) == 0) {
         parameters.need_print = true;
         return true;
-    } else if (std::strcmp(name, "--help") == 0 || std::strcmp(name, "-h") == 0) {
+    } else if (std::strcmp(name, kHelpLongArg) == 0 || std::strcmp(name, kHelpShortArg) == 0) {
         parameters.need_help = true;
         return true;
     }
@@ -114,26 +115,26 @@ bool SetFlag(Parameters& parameters, char* name) {
 }
 
 std::optional<ParametersParseError> ParseOption(Parameters& parameters, char* argument, size_t name_length, char* raw_value) {
-    if (std::strncmp(argument, "--output", name_length) == 0 || std::strncmp(argument, "-o", name_length) == 0) {
+    if (std::strncmp(argument, kOutputLongArg, name_length) == 0 || std::strncmp(argument, kOutputShortArg, name_length) == 0) {
         parameters.output_path = raw_value;
         return std::nullopt;
-    } else if (std::strncmp(argument, "--invalid-lines-output", name_length) == 0 || std::strncmp(argument, "-i", name_length) == 0) {
+    } else if (std::strncmp(argument, kInvalidLinesLongArg, name_length) == 0 || std::strncmp(argument, kInvalidLinesShortArg, name_length) == 0) {
         parameters.invalid_lines_output_path = raw_value;
         return std::nullopt;
     }
 
     std::expected<int64_t, const char*> number = ParseInt(raw_value);
     
-    if (std::strncmp(argument, "--stats", name_length) == 0 || std::strncmp(argument, "-s", 2) == 0) {
+    if (std::strncmp(argument, kStatsLongArg, name_length) == 0 || std::strncmp(argument, kStatsShortArg, 2) == 0) {
         if (!number.has_value()) return MakeParametersParseError(number.error(), argument);
         parameters.stats = number.value();
-    } else if (std::strncmp(argument, "--window", name_length) == 0 || std::strncmp(argument, "-w", 2) == 0) {
+    } else if (std::strncmp(argument, kWindowLongArg, name_length) == 0 || std::strncmp(argument, kWindowShortArg, 2) == 0) {
         if (!number.has_value()) return MakeParametersParseError(number.error(), argument);
         parameters.window = number.value();
-    } else if (std::strncmp(argument, "--from", name_length) == 0 || std::strncmp(argument, "-f", 2) == 0) {
+    } else if (std::strncmp(argument, kFromLongArg, name_length) == 0 || std::strncmp(argument, kFromShortArg, 2) == 0) {
         if (!number.has_value()) return MakeParametersParseError(number.error(), argument);
         parameters.from_time = number.value();
-    } else if (std::strncmp(argument, "--to", name_length) == 0 || std::strncmp(argument, "-t", 2) == 0) {
+    } else if (std::strncmp(argument, kToLongArg, name_length) == 0 || std::strncmp(argument, kToShortArg, 2) == 0) {
         if (!number.has_value()) return MakeParametersParseError(number.error(), argument);
         parameters.to_time = number.value();
     } else {
