@@ -17,10 +17,6 @@ struct LogEntry {
     int64_t bytes_sent = -1;
 };
 
-struct AnalyzeLogError {
-
-};
-
 std::optional<const char*> AnalyzeLog(const Parameters& parameters);
 
 bool ParseLogEntry(LogEntry& to, const char* raw_entry);
