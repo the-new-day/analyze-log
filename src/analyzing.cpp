@@ -216,7 +216,7 @@ std::optional<const char*> AnalyzeLog(const Parameters& parameters) {
         delete[] error_logs_stats.data;
     }
 
-    if (parameters.window > 0) {
+    if (parameters.output_path != nullptr && parameters.window > 0) {
         PrintWindow(result_lower_timestamp, result_higher_timestamp, max_amount_of_requests);
     }
 
