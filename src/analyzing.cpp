@@ -29,7 +29,7 @@ void PrintStats(const StatsArray& stats, int32_t amount) {
 
     for (size_t i = 0; i < amount && i < stats.size; ++i) {
         std::cout << "* " << stats.data[i].request << " - " 
-                  << stats.data[i].frequency << " request" << (stats.data[i].frequency > 1 ? "s" : "") << '\n';
+                  << stats.data[i].frequency << " request" << (stats.data[i].frequency == 1 ? "" : "s") << '\n';
     }
 
     if (stats.size == 0) {
@@ -46,7 +46,7 @@ void PrintWindow(uint64_t lower_timestamp, uint64_t higher_timestamp, uint32_t a
 
     std::cout << "\n[Window]:\n";
     std::cout << '[' << lower_time << "] - [" << higher_time << "] (";
-    std::cout << amount_of_requests << " request" << (amount_of_requests > 1 ? "s)" : ")");
+    std::cout << amount_of_requests << " request" << (amount_of_requests == 1 ? ")" : "s)");
 }
 
 std::optional<const char*> AnalyzeLog(const Parameters& parameters) {
@@ -104,6 +104,11 @@ std::optional<const char*> AnalyzeLog(const Parameters& parameters) {
         ++lines_analyzed;
 
         if (input_file.fail()) {
+            if (input_file.eof()) {
+                --lines_analyzed;
+                break;
+            }
+
             input_file.clear();
             input_file.ignore(UINT64_MAX, '\n');
             ++too_long_lines_amount;
