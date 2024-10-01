@@ -53,7 +53,6 @@ std::expected<const char*, const char*> GetParameterInfo(std::string_view parame
 }
 
 void ShowHelpMessage() {
-    std::cout << *GetParameterInfo(kInvalidLinesLongArg) << '\n';
     std::cout << "Usage: AnalyzeLog [OPTIONS] <logs_filename>" << std::endl << 
         "Possible options:" << std::endl << "\t";
     std::cout << *GetParameterInfo(kOutputLongArg) << std::endl << '\t';
