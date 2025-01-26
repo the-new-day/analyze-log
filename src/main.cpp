@@ -20,7 +20,6 @@ int main(int argc, char** argv){
         }
 
         std::cout << "\nUse --help to see information about supported commands";
-
         return EXIT_FAILURE;
     }
 
@@ -33,7 +32,6 @@ int main(int argc, char** argv){
     
     if (analyzing_error.has_value()) {
         std::cerr << "An error occured while analyzing the file:\n" << analyzing_error.value();
-
         return EXIT_FAILURE;
     }
 
