@@ -11,7 +11,7 @@
 Для сборки нужен CMake 3.5.0+ и компилятор с поддержкой C++23. Собрать можно командой:
 
 ```bash
-cmake . -B./build & cmake -B ./build
+cmake -B ./build ; cmake --build ./build
 ```
 
 ## Использование
